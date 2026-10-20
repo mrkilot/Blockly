@@ -17,12 +17,14 @@ public final class ChatMessage {
     public final boolean event;         // sub / raid etc.
     public final boolean history;
     public final boolean own;
+    public final long shown = System.currentTimeMillis(); // when it arrived here (HUD fade-out)
 
     public volatile boolean deleted;
     public volatile boolean mention;
     public volatile boolean highlight;
     public volatile String suffix = "";
     public volatile int rev;
+    public volatile java.util.Map<String, String> twitchEmotes = java.util.Map.of(); // emote code -> Twitch emote id
 
     private ChatMessage(String channel, String id, String login, String display, String text, int color,
                         List<String> badges, long time, boolean action, boolean system, boolean event,

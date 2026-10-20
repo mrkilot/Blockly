@@ -1,9 +1,11 @@
 package id.eblo.chat.gui;
 
+import id.eblo.chat.ChatLayout;
 import id.eblo.chat.ChatMessage;
 import id.eblo.chat.ChatStore;
 import id.eblo.chat.Config;
 import id.eblo.chat.MessageFormatter;
+import id.eblo.chat.net.Emotes;
 import id.eblo.chat.net.TwitchChat;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -24,9 +26,9 @@ import java.util.Map;
 public class EbloChatScreen extends Screen {
     private static final int LH = 9;
 
-    private record Cached(int rev, int width, boolean showChannel, List<FormattedCharSequence> lines, int prefixW, int nameW) {}
+    private record Cached(int rev, int width, boolean showChannel, int emoVer, List<List<ChatLayout.Seg>> lines, int prefixW, int nameW) {}
 
-    private record Line(FormattedCharSequence text, ChatMessage msg, boolean first, Cached cached) {}
+    private record Line(List<ChatLayout.Seg> text, ChatMessage msg, boolean first, Cached cached) {}
 
     private record Hit(int y, ChatMessage msg, int nameX, int nameW) {}
 
@@ -59,7 +61,7 @@ public class EbloChatScreen extends Screen {
             int unread = ChatStore.unread(tab);
             String label = unread > 0 && !tab.equals(ChatStore.selected) ? base + " •" : base;
             int w = this.font.width(label) + 12;
-            if (x + w > this.width - 74) break;
+            if (x + w > this.width - 124) break;
             Component msg = tab.equals(ChatStore.selected)
                     ? Component.literal(label).withStyle(ChatFormatting.YELLOW)
                     : Component.literal(label);
@@ -67,6 +69,10 @@ public class EbloChatScreen extends Screen {
             addRenderableWidget(Button.builder(msg, b -> select(target)).bounds(x, 4, w, 16).build());
             x += w + 2;
         }
+        addRenderableWidget(Button.builder(Component.translatable("gui.eblochat.btn.hud"), b -> {
+            pendingText = input.getValue();
+            this.minecraft.setScreen(new HudEditScreen(this));
+        }).bounds(this.width - 120, 4, 46, 16).build());
         addRenderableWidget(Button.builder(Component.translatable("gui.eblochat.btn.settings"),
                 b -> this.minecraft.setScreen(new SettingsScreen(this))).bounds(this.width - 70, 4, 66, 16).build());
 
@@ -95,12 +101,10 @@ public class EbloChatScreen extends Screen {
 
     private Cached layout(ChatMessage m, int wrapW, boolean showChannel) {
         Cached c = cache.get(m);
-        if (c != null && c.rev == m.rev && c.width == wrapW && c.showChannel == showChannel) return c;
-        Component full = MessageFormatter.full(m, showChannel);
-        List<FormattedCharSequence> lines = this.font.split(full, wrapW);
-        int pw = this.font.width(MessageFormatter.prefix(m, showChannel));
-        int nw = m.system ? 0 : this.font.width(MessageFormatter.name(m));
-        c = new Cached(m.rev, wrapW, showChannel, lines, pw, nw);
+        int ev = Emotes.version();
+        if (c != null && c.rev == m.rev && c.width == wrapW && c.showChannel == showChannel && c.emoVer == ev) return c;
+        ChatLayout.Result r = ChatLayout.layout(this.font, m, wrapW, showChannel);
+        c = new Cached(m.rev, wrapW, showChannel, ev, r.rows(), r.prefixW(), r.nameW());
         if (cache.size() > 1500) cache.clear();
         cache.put(m, c);
         return c;
@@ -137,7 +141,7 @@ public class EbloChatScreen extends Screen {
             if (line.msg.mention) g.fill(left - 3, y - 1, right + 3, y + LH - 1, 0x55FF8800);
             else if (line.msg.highlight) g.fill(left - 3, y - 1, right + 3, y + LH - 1, 0x4400AAFF);
             else if (line.msg.event) g.fill(left - 3, y - 1, right + 3, y + LH - 1, 0x449146FF);
-            g.text(this.font, line.text, left, y, 0xFFFFFFFF, true);
+            ChatLayout.drawRow(g, this.font, line.text, left, y, 0xFFFFFFFF);
             hits.add(new Hit(y, line.msg, line.first ? left + line.cached.prefixW : -1, line.first ? line.cached.nameW : 0));
         }
         g.disableScissor();

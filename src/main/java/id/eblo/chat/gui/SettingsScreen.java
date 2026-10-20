@@ -19,6 +19,7 @@ public class SettingsScreen extends Screen {
 
     private final Screen parent;
     private final List<Field> fields = new ArrayList<>();
+    private SecretField oauthEye;
     private EditBox channels, nick, oauth, highlight, ignored, blocked;
     private String oldChannels = "", oldNick = "", oldOauth = "";
 
@@ -39,7 +40,11 @@ public class SettingsScreen extends Screen {
     }
 
     private EditBox field(int x, int y, String labelKey, String value, int max) {
-        EditBox b = new EditBox(this.font, x, y + 10, 150, 16, Component.translatable(labelKey));
+        return field(x, y, labelKey, value, max, 150);
+    }
+
+    private EditBox field(int x, int y, String labelKey, String value, int max, int w) {
+        EditBox b = new EditBox(this.font, x, y + 10, w, 16, Component.translatable(labelKey));
         b.setMaxLength(max);
         b.setValue(value);
         addRenderableWidget(b);
@@ -51,7 +56,7 @@ public class SettingsScreen extends Screen {
     protected void init() {
         fields.clear();
         int lx = this.width / 2 - 155, rx = this.width / 2 + 5;
-        int step = Math.max(19, Math.min(22, (this.height - 80) / 10));
+        int step = Math.max(19, Math.min(22, (this.height - 80) / 11));
         int y = 30;
         Config.Data d = Config.d;
         toggle(lx, y, "gui.eblochat.s.timestamps", () -> d.showTimestamps, v -> d.showTimestamps = v); y += step;
@@ -63,7 +68,8 @@ public class SettingsScreen extends Screen {
         toggle(lx, y, "gui.eblochat.s.modactions", () -> d.showModActions, v -> d.showModActions = v); y += step;
         toggle(lx, y, "gui.eblochat.s.events", () -> d.showEvents, v -> d.showEvents = v); y += step;
         toggle(lx, y, "gui.eblochat.s.history", () -> d.loadHistory, v -> d.loadHistory = v); y += step;
-        toggle(lx, y, "gui.eblochat.s.hide_deleted", () -> d.hideDeleted, v -> d.hideDeleted = v);
+        toggle(lx, y, "gui.eblochat.s.hide_deleted", () -> d.hideDeleted, v -> d.hideDeleted = v); y += step;
+        toggle(lx, y, "gui.eblochat.s.emotes", () -> d.showEmotes, v -> d.showEmotes = v);
 
         int fstep = Math.max(32, Math.min(36, (this.height - 80) / 6));
         int fy = 28;
@@ -72,18 +78,23 @@ public class SettingsScreen extends Screen {
         oldOauth = d.oauth;
         channels = field(rx, fy, "gui.eblochat.s.channels", oldChannels, 512); fy += fstep;
         nick = field(rx, fy, "gui.eblochat.s.nick", d.nick, 40); fy += fstep;
-        oauth = field(rx, fy, "gui.eblochat.s.oauth", d.oauth, 120); fy += fstep;
+        oauth = field(rx, fy, "gui.eblochat.s.oauth", d.oauth, 120, 126);
+        oauthEye = SecretField.attach(oauth, rx + 128, fy + 10, this::addRenderableWidget);
+        fy += fstep;
         highlight = field(rx, fy, "gui.eblochat.s.highlight", Config.join(d.highlightWords), 512); fy += fstep;
         ignored = field(rx, fy, "gui.eblochat.s.ignored", Config.join(d.ignoredUsers), 512); fy += fstep;
         blocked = field(rx, fy, "gui.eblochat.s.blocked", Config.join(d.blockedTerms), 512);
 
         addRenderableWidget(Button.builder(Component.translatable("gui.eblochat.done"), b -> onClose())
-                .bounds(this.width / 2 - 75, this.height - 24, 150, 20).build());
+                .bounds(this.width / 2 - 155, this.height - 24, 150, 20).build());
+        addRenderableWidget(Button.builder(Component.translatable("gui.eblochat.points.btn"),
+                b -> this.minecraft.setScreen(new PointsScreen(this))).bounds(this.width / 2 + 5, this.height - 24, 150, 20).build());
     }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         super.extractRenderState(g, mx, my, delta);
+        if (oauthEye != null) oauthEye.draw(g);
         g.text(this.font, this.title, this.width / 2 - this.font.width(this.title) / 2, 10, 0xFFFFFFFF, true);
         for (Field f : fields) {
             g.text(this.font, Component.translatable(f.labelKey), f.box.getX(), f.y, 0xFFAAAAAA, true);

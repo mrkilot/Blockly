@@ -25,7 +25,12 @@ public final class UserLookup {
     private UserLookup() {}
 
     public static CompletableFuture<Info> fetch(String login) {
-        return CompletableFuture.supplyAsync(() -> {
+        return CompletableFuture.supplyAsync(() -> fetchSync(login), TwitchChat.pool());
+    }
+
+    /** Blocking variant; call only from a background thread. */
+    public static Info fetchSync(String login) {
+        {
             Info info = new Info();
             info.login = login;
             try {
@@ -64,7 +69,7 @@ public final class UserLookup {
                 info.error = e.getClass().getSimpleName();
             }
             return info;
-        }, TwitchChat.pool());
+        }
     }
 
     private static String str(JsonObject o, String k) {

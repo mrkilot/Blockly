@@ -5,6 +5,8 @@ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -29,6 +31,27 @@ public final class ChatStore {
 
     public static List<ChatMessage> list(String channel) {
         return BUFFERS.computeIfAbsent(channel, k -> new CopyOnWriteArrayList<>());
+    }
+
+    /** Newest messages for the HUD, oldest first: either every joined channel merged by time, or the selected tab. */
+    public static List<ChatMessage> recent(int perChannel, boolean allChannels) {
+        List<ChatMessage> out = new ArrayList<>();
+        if (allChannels && !Config.d.channels.isEmpty()) {
+            for (String ch : new ArrayList<>(Config.d.channels)) tail(list(ch), perChannel, out);
+            out.sort(Comparator.comparingLong(m -> m.time));
+        } else {
+            tail(list(selected), perChannel, out);
+        }
+        return out;
+    }
+
+    private static void tail(List<ChatMessage> src, int n, List<ChatMessage> out) {
+        int from = Math.max(0, src.size() - n);
+        for (int i = from; i < src.size(); i++) {
+            ChatMessage m = src.get(i);
+            if (m.deleted && Config.d.hideDeleted) continue;
+            out.add(m);
+        }
     }
 
     public static int unread(String channel) {

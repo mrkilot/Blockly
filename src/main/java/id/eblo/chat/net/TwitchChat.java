@@ -40,11 +40,11 @@ public final class TwitchChat {
     private static final AtomicInteger GENERATION = new AtomicInteger();
     private static final Object WRITE_LOCK = new Object();
     private static final ExecutorService HTTP_POOL = Executors.newFixedThreadPool(2, r -> {
-        Thread t = new Thread(r, "EbloChat-HTTP");
+        Thread t = new Thread(r, "Blockly-HTTP");
         t.setDaemon(true);
         return t;
     });
-    private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+    private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NORMAL).build();
 
     private static final Map<String, Map<String, String>> ROOM = new ConcurrentHashMap<>();
     private static final Map<String, String[]> USERSTATE = new ConcurrentHashMap<>(); // channel -> {color, badges, display}
@@ -71,7 +71,7 @@ public final class TwitchChat {
     public static void start() {
         stop();
         int gen = GENERATION.incrementAndGet();
-        Thread t = new Thread(() -> run(gen), "EbloChat-IRC");
+        Thread t = new Thread(() -> run(gen), "Blockly-IRC");
         t.setDaemon(true);
         t.start();
     }
@@ -259,6 +259,7 @@ public final class TwitchChat {
                     if (!history) ChatStore.deleteById(l.channel(), l.tag("target-msg-id"));
                 }
                 case "ROOMSTATE" -> {
+                    Emotes.loadChannel(l.channel(), l.tag("room-id"));
                     Map<String, String> r = ROOM.computeIfAbsent(l.channel(), k -> new ConcurrentHashMap<>());
                     for (String k : new String[]{"slow", "subs-only", "emote-only", "r9k", "followers-only"}) {
                         if (l.tags.containsKey(k)) r.put(k, l.tag(k));
@@ -287,6 +288,8 @@ public final class TwitchChat {
         ChatMessage m = ChatMessage.chat(l.channel(), l.tag("id"), login, l.tag("display-name"), text,
                 parseColor(l.tag("color")), parseBadges(l.tag("badges")), parseTime(l), action, history,
                 login.equalsIgnoreCase(ownLogin));
+        m.twitchEmotes = Emotes.parseTwitchTag(l.tag("emotes"), text, action);
+        Emotes.loadChannel(l.channel(), l.tag("room-id"));
         ChatStore.add(m);
     }
 
