@@ -18,8 +18,11 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -52,7 +55,9 @@ public final class Emotes {
 
         public Identifier id() {
             if (ids.length == 1) return ids[0];
-            long t = System.currentTimeMillis() % ends[ends.length - 1];
+            long total = ends[ends.length - 1];
+            if (total <= 0) return ids[0];
+            long t = System.currentTimeMillis() % total;
             for (int i = 0; i < ends.length; i++) if (t < ends[i]) return ids[i];
             return ids[0];
         }
@@ -102,9 +107,11 @@ public final class Emotes {
         if (word.isEmpty()) return null;
         String tid = m.twitchEmotes.get(word);
         if (tid != null) {
+            // "default" serves the animated GIF when the Twitch emote has one, otherwise the static PNG.
             return TWITCH.computeIfAbsent(tid, i -> new Emote(word,
-                    "https://static-cdn.jtvnw.net/emoticons/v2/" + i + "/static/dark/2.0",
-                    "https://static-cdn.jtvnw.net/emoticons/v2/" + i + "/default/dark/2.0"));
+                    "https://static-cdn.jtvnw.net/emoticons/v2/" + i + "/default/dark/2.0",
+                    "https://static-cdn.jtvnw.net/emoticons/v2/" + i + "/default/light/2.0",
+                    "https://static-cdn.jtvnw.net/emoticons/v2/" + i + "/static/dark/2.0"));
         }
         Chan c = CHANNELS.get(m.channel);
         if (c != null) {
@@ -163,7 +170,7 @@ public final class Emotes {
     public static void init() {
         if (globalsStarted) return;
         globalsStarted = true;
-        TwitchChat.pool().execute(() -> run("7TV global", () -> load7tvSet(getString("https://7tv.io/v3/emote-sets/global"), "emotes", G_7TV)));
+        TwitchChat.pool().execute(() -> run("7TV global", () -> load7tvSet(getStringRetry("https://7tv.io/v3/emote-sets/global"), "emotes", G_7TV)));
         TwitchChat.pool().execute(() -> run("BTTV global", () -> loadBttv(getString("https://api.betterttv.net/3/cached/emotes/global"), null, G_BTTV)));
         TwitchChat.pool().execute(() -> run("FFZ global", () -> loadFfzGlobal(getString("https://api.frankerfacez.com/v1/set/global"))));
     }
@@ -174,7 +181,7 @@ public final class Emotes {
         if (CHANNELS.putIfAbsent(channel, new Chan()) != null) return;
         Chan c = CHANNELS.get(channel);
         TwitchChat.pool().execute(() -> run("7TV " + channel, () -> {
-            String body = getString("https://7tv.io/v3/users/twitch/" + channelId);
+            String body = getStringRetry("https://7tv.io/v3/users/twitch/" + channelId);
             if (body == null) return;
             JsonObject root = JsonParser.parseString(body).getAsJsonObject();
             if (root.has("emote_set") && root.get("emote_set").isJsonObject()) {
@@ -230,8 +237,14 @@ public final class Emotes {
             java.util.List<String> urls = new java.util.ArrayList<>();
             String first = animated ? ".gif" : ".png", second = animated ? ".png" : ".gif";
             for (String sz : new String[]{"/2x", "/3x", "/1x"}) {
-                urls.add(base + sz + first);
-                urls.add(base + sz + second);
+                String a = base + sz + first;
+                String b = base + sz + second;
+                // 7TV's CDN (cdn.7tv.app) is blocked in Russia, so the proxy is tried first; the direct
+                // URL stays as a fallback in case the proxy is unavailable.
+                urls.add(proxied(a));
+                urls.add(proxied(b));
+                urls.add(a);
+                urls.add(b);
             }
             into.putIfAbsent(name, new Emote(name, urls.toArray(new String[0])));
         }
@@ -289,26 +302,91 @@ public final class Emotes {
 
     private static String getString(String url) throws Exception {
         byte[] b = getBytes(url);
-        return b == null ? null : new String(b, java.nio.charset.StandardCharsets.UTF_8);
+        return b == null ? null : new String(b, StandardCharsets.UTF_8);
     }
 
-    /** First URL that answers 200. */
-    private static byte[] getBytes(String... urls) throws Exception {
-        for (String u : urls) {
+    /** Text fetch with retries: Russian DPI sometimes resets 7TV API connections mid-handshake. */
+    private static String getStringRetry(String url) {
+        for (int i = 0; i < 3; i++) {
             try {
-                HttpRequest req = HttpRequest.newBuilder(URI.create(u)).timeout(Duration.ofSeconds(15))
-                        .header("User-Agent", "Blockly").GET().build();
-                HttpResponse<byte[]> resp = TwitchChat.http().send(req, HttpResponse.BodyHandlers.ofByteArray());
-                if (resp.statusCode() == 200 && resp.body().length > 0) return resp.body();
-            } catch (java.io.IOException ignored) {
+                String body = getString(url);
+                if (body != null && !body.isEmpty()) return body;
+            } catch (Exception ignored) {
+            }
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return null;
             }
         }
         return null;
     }
 
-    /** Animated GIF emotes are shown as their first frame only. Set to true to play the animation. */
-    private static final boolean ANIMATE = false;
-    private static final int MAX_FRAMES = 80;
+    /**
+     * Public image proxy (wsrv.nl) used for 7TV's CDN, which is unreachable in Russia. {@code n=-1} keeps
+     * every frame of animated GIFs instead of flattening them to the first frame.
+     */
+    private static final String IMAGE_PROXY = "https://wsrv.nl/?n=-1&url=";
+
+    /** Image downloads use a shorter connect timeout so a blocked host does not stall the (2-thread) pool. */
+    private static final HttpClient IMAGE_HTTP = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(6))
+            .followRedirects(HttpClient.Redirect.NORMAL)
+            .build();
+
+    private static String proxied(String url) {
+        return IMAGE_PROXY + URLEncoder.encode(url, StandardCharsets.UTF_8);
+    }
+
+    /** Hosts that recently failed to connect (blocked by the ISP); skipped for a while to avoid long stalls. */
+    private static final Map<String, Long> DEAD_HOSTS = new ConcurrentHashMap<>();
+    private static final long DEAD_TTL_MS = 5 * 60_000L;
+
+    private static boolean hostIsDead(String host) {
+        if (host == null) return false;
+        Long until = DEAD_HOSTS.get(host);
+        if (until == null) return false;
+        if (System.currentTimeMillis() >= until) {
+            DEAD_HOSTS.remove(host, until);
+            return false;
+        }
+        return true;
+    }
+
+    /** First URL that answers 200; each URL is retried once (Russian DPI drops connections randomly). */
+    private static byte[] getBytes(String... urls) throws Exception {
+        for (String u : urls) {
+            String host;
+            try {
+                host = URI.create(u).getHost();
+            } catch (IllegalArgumentException bad) {
+                continue;
+            }
+            if (hostIsDead(host)) continue;
+            for (int attempt = 0; attempt < 2; attempt++) {
+                try {
+                    HttpRequest req = HttpRequest.newBuilder(URI.create(u)).timeout(Duration.ofSeconds(15))
+                            .header("User-Agent", "Blockly").GET().build();
+                    HttpResponse<byte[]> resp = IMAGE_HTTP.send(req, HttpResponse.BodyHandlers.ofByteArray());
+                    if (resp.statusCode() == 200 && resp.body().length > 0) return resp.body();
+                    break; // a real HTTP error (404 etc.) will not change on retry
+                } catch (java.net.http.HttpConnectTimeoutException timeout) {
+                    DEAD_HOSTS.put(host, System.currentTimeMillis() + DEAD_TTL_MS);
+                    break;
+                } catch (java.net.http.HttpTimeoutException timeout) {
+                    break; // host is blocked/unreachable; retrying will not help
+                } catch (java.io.IOException ignored) {
+                    if (attempt == 0) Thread.sleep(200);
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Animated emotes are played frame by frame; set to false to show only the first frame. */
+    private static final boolean ANIMATE = true;
+    private static final int MAX_FRAMES = 48;
 
     private static void loadImage(Emote e) {
         try {

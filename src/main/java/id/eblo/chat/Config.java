@@ -28,9 +28,6 @@ public final class Config {
         public boolean showEvents = true;
         public boolean loadHistory = true;
         public boolean showEmotes = true;   // Twitch / 7TV / BTTV / FFZ images in chat
-        // channel-points auto claim (opt-in; uses Twitch's unofficial web API, needs the browser auth-token)
-        public boolean autoClaim = false;
-        public String webToken = "";
         public boolean hideDeleted = false;
         public int maxMessages = 500;
         // on-screen HUD chat window (like a minimap widget)
@@ -72,7 +69,6 @@ public final class Config {
         if (d.blockedTerms == null) d.blockedTerms = new ArrayList<>();
         if (d.nick == null) d.nick = "";
         if (d.oauth == null) d.oauth = "";
-        if (d.webToken == null) d.webToken = "";
         if (d.maxMessages < 50) d.maxMessages = 50;
         d.hudAnchor = Math.max(0, Math.min(7, d.hudAnchor));
         d.hudW = Math.max(80, d.hudW);

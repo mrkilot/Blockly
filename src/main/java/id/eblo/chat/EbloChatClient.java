@@ -4,7 +4,6 @@ import com.mojang.blaze3d.platform.InputConstants;
 import id.eblo.chat.gui.EbloChatScreen;
 import id.eblo.chat.gui.HudEditScreen;
 import id.eblo.chat.net.Emotes;
-import id.eblo.chat.net.PointsClaimer;
 import id.eblo.chat.net.TwitchChat;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -52,7 +51,6 @@ public class EbloChatClient implements ClientModInitializer {
         });
 
         Emotes.init();
-        PointsClaimer.start();
         TwitchChat.start();
         for (String ch : Config.d.channels) TwitchChat.join(ch); // preloads history; IRC JOIN happens on connect
         LOGGER.info("EbloChat initialised ({} channels)", Config.d.channels.size());

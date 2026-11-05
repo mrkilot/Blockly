@@ -3,6 +3,7 @@ package id.eblo.chat.gui;
 import id.eblo.chat.ChatStore;
 import id.eblo.chat.Config;
 import id.eblo.chat.net.TwitchChat;
+
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -87,8 +88,11 @@ public class SettingsScreen extends Screen {
 
         addRenderableWidget(Button.builder(Component.translatable("gui.eblochat.done"), b -> onClose())
                 .bounds(this.width / 2 - 155, this.height - 24, 150, 20).build());
-        addRenderableWidget(Button.builder(Component.translatable("gui.eblochat.points.btn"),
-                b -> this.minecraft.setScreen(new PointsScreen(this))).bounds(this.width / 2 + 5, this.height - 24, 150, 20).build());
+        addRenderableWidget(Button.builder(Component.translatable("gui.eblochat.s.auth"), b -> showTokenHelp()).bounds(this.width / 2 + 5, this.height - 24, 150, 20).build());
+    }
+
+    private void showTokenHelp() {
+        this.minecraft.setScreen(new TokenHelpScreen(this));
     }
 
     @Override

@@ -1,0 +1,46 @@
+# Blockly
+
+**Twitch chat inside Minecraft.** A client-side Fabric mod for Minecraft 26.1.2 with Chatterino-style features: read and send Twitch chat without leaving the game.
+
+## Features
+
+- **Multi-channel tabs**, badges, message history, mentions and user cards
+- **HUD chat window** on top of the game
+  - 8 position presets (corners, edges, bottom centre)
+  - width / height sliders, font size 75-200%, background opacity
+  - smooth fade-out of old messages
+  - show all channels at once or only the selected tab
+- **Emotes:** 7TV, BetterTTV, FrankerFaceZ and official Twitch emotes (animated GIFs are shown as a still frame)
+- **Moderation tools** for channels where you are a moderator (user card, ban)
+- **Mod Menu** support: settings button in the mod list
+- OAuth and web tokens are masked in the UI, with an eye button to reveal them
+- **Channel points auto-claim (BETA, untested, may not work)** - optional, off by default, needs a web token
+
+## How to use
+
+- Press **O** to open the chat window and **H** to open the HUD settings (both keys can be changed in Controls).
+- Open the settings, enter your channel names and, if you want to send messages, your Twitch nick and OAuth token.
+- Click a name for the user card, right-click a name to insert an @mention, Tab switches tabs.
+- Commands: `/join`, `/part`, `/clear`, `/user`, `/ignore`, `/unignore`, `/highlight`, `/mentions`, `/reconnect`, `/me`.
+
+## Requirements
+
+Minecraft 26.1.2, Fabric Loader 0.19.2+, Fabric API 0.155.0+, Java 25. Mod Menu is optional.
+
+## Network and privacy
+
+The mod connects to the following services:
+- Twitch chat (IRC over WebSocket) and Twitch / IVR APIs for chat, history and user info
+- 7TV, BetterTTV and FrankerFaceZ APIs for emote lists and images
+- Twitch web endpoints, only if you turn on the optional channel points auto-claim
+
+Your tokens are stored locally in `config/eblochat.json` and are sent only to Twitch. Never share that file. The mod collects no analytics.
+
+## Notes
+
+This mod is unofficial and not affiliated with Twitch. The channel points auto-claim is a beta feature: it has not been fully tested, uses unofficial Twitch endpoints, may not work or may stop working at any time. Use it at your own risk.
+
+## Links
+
+- Source code and issues: https://github.com/mrkilot/Blockly
+- Telegram: https://t.me/blockly_mod

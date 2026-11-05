@@ -4,24 +4,18 @@
   "version": "${version}",
   "name": "Blockly",
   "description": "Twitch chat inside Minecraft with Chatterino-style features: multi-channel tabs, badges, history, mentions, moderation events, user cards.",
-  "authors": [
-    "mrkilot"
-  ],
+  "authors": [],
   "license": "MIT",
   "icon": "assets/eblochat/icon.png",
   "environment": "client",
   "entrypoints": {
-    "client": [
-      "id.eblo.chat.EbloChatClient"
-    ],
-    "modmenu": [
-      "id.eblo.chat.ModMenuIntegration"
-    ]
+    "client": ["id.eblo.chat.EbloChatClient"],
+    "modmenu": ["id.eblo.chat.ModMenuIntegration"]
   },
   "custom": {
     "modmenu": {
       "links": {
-        "modmenu.github": "https://github.com/mrkilot/Blockly"
+        "modmenu.github": "https://github.com/mrkilot/EbloChat"
       }
     }
   },
@@ -30,10 +24,5 @@
     "fabric-api": ">=0.155.0",
     "minecraft": "~26.1",
     "java": ">=25"
-  },
-  "contact": {
-    "homepage": "https://github.com/mrkilot/Blockly",
-    "sources": "https://github.com/mrkilot/Blockly",
-    "issues": "https://github.com/mrkilot/Blockly/issues"
   }
 }
