@@ -21,6 +21,10 @@ public class EbloChatClient implements ClientModInitializer {
 
     private static KeyMapping openKey, hudKey;
 
+    /** One shared category instance: the controls screen groups entries by category reference. */
+    private static final KeyMapping.Category CATEGORY =
+            new KeyMapping.Category(Identifier.fromNamespaceAndPath(MOD_ID, "general"));
+
     @Override
     public void onInitializeClient() {
         Config.load();
@@ -29,13 +33,13 @@ public class EbloChatClient implements ClientModInitializer {
                 "key.eblochat.open",
                 InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_O,
-                new KeyMapping.Category(Identifier.fromNamespaceAndPath(MOD_ID, "general"))));
+                CATEGORY));
 
         hudKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.eblochat.hud_edit",
                 InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_H,
-                new KeyMapping.Category(Identifier.fromNamespaceAndPath(MOD_ID, "general"))));
+                CATEGORY));
 
         // always-on chat widget on the HUD (moved / resized in HudEditScreen)
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath(MOD_ID, "chat_hud"),
